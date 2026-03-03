@@ -22,9 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── Service Worker ───────────────────────────────────────────────
 function registerSW() {
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(console.warn);
+        navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(console.warn);
     }
 }
+
 
 // ── Tab navigation ───────────────────────────────────────────────
 function showTab(name) {
