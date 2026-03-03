@@ -202,7 +202,7 @@ async function runAnalysis() {
                 'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: 'llama-3.2-90b-vision-preview',
+                model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
                 max_tokens: 2048,
                 temperature: 0.2,
                 messages: [
@@ -359,7 +359,7 @@ async function sendChatMessage() {
                 'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: 'llama-3.2-90b-vision-preview',
+                model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
                 max_tokens: 1024,
                 temperature: 0.3,
                 messages
