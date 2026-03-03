@@ -188,7 +188,7 @@ async function runAnalysis() {
         const mimeMatch = (currentImageDataUrl || '').match(/^data:(image\/[a-zA-Z+]+);base64,/);
         const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
 
-        const GEMINI_MODEL = 'gemini-1.5-flash';
+        const GEMINI_MODEL = 'gemini-1.5-flash-latest';
         const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
 
         // First turn: image + analysis request
@@ -344,7 +344,7 @@ async function sendChatMessage() {
     chatHistory.push({ role: 'user', parts: userParts });
 
     try {
-        const GEMINI_MODEL = 'gemini-1.5-flash';
+        const GEMINI_MODEL = 'gemini-1.5-flash-latest';
         const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
         const chatSystemPrompt = buildChatSystemPrompt();
 
