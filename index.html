@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="DynaLens" />
+    <meta name="theme-color" content="#0D1117" />
+    <meta name="description" content="Analiza gráficas y alertas de Dynatrace con IA" />
+    <title>DynaLens – Dynatrace AI Analyzer</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json" />
+
+    <!-- iOS Icons -->
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+    <!-- Splash screen color for iOS -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+
+    <link rel="stylesheet" href="app.css" />
+</head>
+
+<body>
+
+    <!-- ══════════════════════════════ HEADER ══════════════════════════════ -->
+    <header class="app-header">
+        <div class="header-brand">
+            <div class="header-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" />
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M2 20 L6 14 L10 17 L14 11 L18 15 L22 9" stroke-width="1.5" stroke-linecap="round" />
+                </svg>
+            </div>
+            <span>DynaLens</span>
+        </div>
+        <button class="header-settings-btn" onclick="showTab('settings')" aria-label="Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3" />
+                <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+        </button>
+    </header>
+
+    <!-- ══════════════════════════════ TABS ════════════════════════════════ -->
+    <main class="app-main">
+
+        <!-- ── ANALYZE TAB ── -->
+        <section id="tab-analyze" class="tab active">
+            <div class="analyze-hero">
+                <p class="analyze-subtitle">Sube una foto de Dynatrace para analizarla con IA</p>
+            </div>
+
+            <!-- Drop zone / preview -->
+            <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+                <div class="dropzone-placeholder" id="dropzonePlaceholder">
+                    <div class="dropzone-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="3" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                    </div>
+                    <p>Toca para seleccionar imagen</p>
+                    <span>JPG, PNG, WEBP hasta 10MB</span>
+                </div>
+                <img id="previewImg" class="preview-img hidden" alt="Preview" />
+            </div>
+
+            <input type="file" id="fileInput" accept="image/*" capture="environment" class="hidden" />
+
+            <!-- Action buttons -->
+            <div class="action-row">
+                <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    Galería / Cámara
+                </button>
+                <button class="btn btn-primary" id="analyzeBtn" onclick="runAnalysis()" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                    </svg>
+                    Analizar con IA
+                </button>
+            </div>
+
+            <!-- Loading state -->
+            <div class="loading-card hidden" id="loadingCard">
+                <div class="loading-spinner"></div>
+                <div>
+                    <p class="loading-title">Analizando imagen...</p>
+                    <p class="loading-sub">GPT-4o Vision está procesando el gráfico</p>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div id="resultsSection" class="hidden"></div>
+        </section>
+
+        <!-- ── HISTORY TAB ── -->
+        <section id="tab-history" class="tab">
+            <div class="tab-title-row">
+                <h2>Historial</h2>
+                <button class="btn-ghost" onclick="clearHistory()">Borrar todo</button>
+            </div>
+            <div id="historyList" class="history-list">
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    <p>Aún no hay análisis guardados</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── SETTINGS TAB ── -->
+        <section id="tab-settings" class="tab">
+            <h2 class="settings-title">Ajustes</h2>
+
+            <div class="settings-card">
+                <label class="settings-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    OpenAI API Key
+                </label>
+                <div class="api-key-row">
+                    <input type="password" id="apiKeyInput" placeholder="sk-..." class="settings-input" />
+                    <button class="btn-ghost" onclick="toggleApiKey()">Ver</button>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="saveApiKey()">Guardar clave</button>
+                <p class="settings-hint">Obtén tu clave en <a href="https://platform.openai.com"
+                        target="_blank">platform.openai.com</a></p>
+            </div>
+
+            <div class="settings-card">
+                <label class="settings-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                    </svg>
+                    Base de conocimiento (NotebookLM)
+                </label>
+                <p class="settings-hint">Pega el contenido de tus runbooks de Dynatrace. Se usará para enriquecer los
+                    análisis.</p>
+
+                <div id="kbDocList" class="kb-doc-list"></div>
+
+                <button class="btn btn-secondary btn-sm" onclick="openAddDoc()">+ Añadir documento</button>
+            </div>
+
+            <div class="settings-card">
+                <label class="settings-label">Acerca de</label>
+                <div class="about-row"><span>Versión</span><span>1.0.0</span></div>
+                <div class="about-row"><span>Modelo IA</span><span>GPT-4o Vision</span></div>
+                <div class="about-row"><span>Modo KB</span><span>TF-IDF embebido</span></div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ══════════════════════════════ BOTTOM NAV ══════════════════════════ -->
+    <nav class="bottom-nav">
+        <button class="nav-btn active" id="nav-analyze" onclick="showTab('analyze')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+            </svg>
+            <span>Analizar</span>
+        </button>
+        <button class="nav-btn" id="nav-history" onclick="showTab('history')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <span>Historial</span>
+        </button>
+        <button class="nav-btn" id="nav-settings" onclick="showTab('settings')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3" />
+                <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+            <span>Ajustes</span>
+        </button>
+    </nav>
+
+    <!-- ══════════════════════════════ MODAL: Add Document ══════════════ -->
+    <div class="modal-overlay hidden" id="docModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Añadir documento</h3>
+                <button class="btn-ghost" onclick="closeAddDoc()">✕</button>
+            </div>
+            <input type="text" id="docTitle" placeholder="Título (ej: Runbook CPU Spike)" class="settings-input" />
+            <textarea id="docContent" placeholder="Pega aquí el contenido del runbook, SOP o playbook de Dynatrace..."
+                class="settings-textarea"></textarea>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeAddDoc()">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveDoc()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════ TOAST ══════════════════════════════ -->
+    <div class="toast hidden" id="toast"></div>
+
+    <!-- Install PWA banner -->
+    <div class="install-banner hidden" id="installBanner">
+        <span>📲 Instala DynaLens en tu iPhone</span>
+        <button onclick="dismissInstall()">✕</button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
