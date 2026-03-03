@@ -1,10 +1,12 @@
-const CACHE_NAME = 'dynalens-v1';
+const CACHE_NAME = 'dynalens-v2';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/app.css',
-  '/app.js',
-  '/manifest.json'
+  '/DynaLens/',
+  '/DynaLens/index.html',
+  '/DynaLens/app.css',
+  '/DynaLens/app.js',
+  '/DynaLens/manifest.json',
+  '/DynaLens/icons/icon-192.png',
+  '/DynaLens/icons/icon-512.png'
 ];
 
 self.addEventListener('install', e => {
