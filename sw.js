@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dynalens-v3';
+const CACHE_NAME = 'dynalens-v4';
 const ASSETS = [
   '/DynaLens/',
   '/DynaLens/index.html',
