@@ -176,26 +176,32 @@ async function runAnalysis() {
         );
 
         const systemPrompt = buildSystemPrompt(kbContext);
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+
+        // Detect image MIME type from dataUrl prefix
+        const mimeMatch = (currentImageDataUrl || '').match(/^data:(image\/[a-zA-Z+]+);base64,/);
+        const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+
+        // Google Gemini 2.5 Pro API (generateContent)
+        const GEMINI_MODEL = 'gemini-2.5-pro-preview-0325';
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+
+        const response = await fetch(endpoint, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                model: 'gpt-4o',
-                max_tokens: 2000,
-                temperature: 0.2,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    {
-                        role: 'user',
-                        content: [
-                            { type: 'text', text: 'Analiza esta captura de pantalla de Dynatrace y responde SOLO con JSON válido.' },
-                            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${currentImageBase64}`, detail: 'high' } }
-                        ]
-                    }
-                ]
+                system_instruction: { parts: [{ text: systemPrompt }] },
+                contents: [{
+                    role: 'user',
+                    parts: [
+                        { text: 'Analiza esta captura de pantalla de Dynatrace y responde SOLO con JSON válido.' },
+                        { inline_data: { mime_type: mimeType, data: currentImageBase64 } }
+                    ]
+                }],
+                generationConfig: {
+                    temperature: 0.2,
+                    maxOutputTokens: 2048,
+                    responseMimeType: 'application/json'
+                }
             })
         });
 
@@ -205,7 +211,7 @@ async function runAnalysis() {
         }
 
         const data = await response.json();
-        const raw = data.choices?.[0]?.message?.content || '';
+        const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
         const analysis = parseAnalysis(raw, kbContext);
         currentAnalysis = analysis;
 
@@ -327,7 +333,7 @@ function renderResults(a) {
     </button>
   </div>
   <div id="rawResponse" class="hidden">
-    ${resultCard('Respuesta GPT-4o', svgTerminal(), `<pre style="font-size:0.75rem;color:#4CAF50;white-space:pre-wrap;word-break:break-all">${escHtml(a.rawResponse || '')}</pre>`)}
+    ${resultCard('Respuesta Gemini 2.5 Pro', svgTerminal(), `<pre style="font-size:0.75rem;color:#4CAF50;white-space:pre-wrap;word-break:break-all">${escHtml(a.rawResponse || '')}</pre>`)}
   </div>`;
 
     const section = document.getElementById('resultsSection');
