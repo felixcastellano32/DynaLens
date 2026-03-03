@@ -181,8 +181,8 @@ async function runAnalysis() {
         const mimeMatch = (currentImageDataUrl || '').match(/^data:(image\/[a-zA-Z+]+);base64,/);
         const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
 
-        // Google Gemini 2.5 Pro API (generateContent)
-        const GEMINI_MODEL = 'gemini-2.5-pro-preview-0325';
+        // Google Gemini 2.0 Flash API (generateContent)
+        const GEMINI_MODEL = 'gemini-2.0-flash';
         const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
 
         const response = await fetch(endpoint, {
