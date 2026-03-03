@@ -188,22 +188,25 @@ async function runAnalysis() {
         const mimeMatch = (currentImageDataUrl || '').match(/^data:(image\/[a-zA-Z+]+);base64,/);
         const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
 
-        const GEMINI_MODEL = 'gemini-1.5-flash-latest';
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-
-        // First turn: image + analysis request
-        const firstUserParts = [
-            { text: 'Analiza esta captura de pantalla de Dynatrace y responde SOLO con JSON válido.' },
-            { inline_data: { mime_type: mimeType, data: currentImageBase64 } }
+        // Anthropic Claude 3.5 Sonnet
+        const firstUserContent = [
+            { type: 'image', source: { type: 'base64', media_type: mimeType, data: currentImageBase64 } },
+            { type: 'text', text: 'Analiza esta captura de pantalla de Dynatrace y responde ÚnicaMENTE con JSON válido, sin markdown.' }
         ];
 
-        const response = await fetch(endpoint, {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true'
+            },
             body: JSON.stringify({
-                system_instruction: { parts: [{ text: systemPrompt }] },
-                contents: [{ role: 'user', parts: firstUserParts }],
-                generationConfig: { temperature: 0.2, maxOutputTokens: 2048, responseMimeType: 'application/json' }
+                model: 'claude-3-5-sonnet-20241022',
+                max_tokens: 2048,
+                system: systemPrompt,
+                messages: [{ role: 'user', content: firstUserContent }]
             })
         });
 
@@ -213,16 +216,13 @@ async function runAnalysis() {
         }
 
         const data = await response.json();
-        const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const raw = data.content?.[0]?.text || '';
         const analysis = parseAnalysis(raw, kbContext);
         currentAnalysis = analysis;
 
-        // Save first turn into history (without JSON, use summary instead)
-        chatHistory.push({ role: 'user', parts: firstUserParts });
-        chatHistory.push({
-            role: 'model',
-            parts: [{ text: raw }]
-        });
+        // Store first turn in Anthropic format
+        chatHistory.push({ role: 'user', content: firstUserContent });
+        chatHistory.push({ role: 'assistant', content: [{ type: 'text', text: raw }] });
 
         renderResults(analysis);
         saveHistoryItem(analysis, currentImageDataUrl);
@@ -329,32 +329,34 @@ async function sendChatMessage() {
     document.getElementById('chatSendBtn').disabled = true;
     input.value = '';
 
-    // Build user parts
-    const userParts = [];
-    if (text) userParts.push({ text });
+    // Build user content blocks (Anthropic format)
+    const userContent = [];
     if (chatPendingImage) {
-        userParts.push({ inline_data: { mime_type: chatPendingImage.mimeType, data: chatPendingImage.base64 } });
+        userContent.push({ type: 'image', source: { type: 'base64', media_type: chatPendingImage.mimeType, data: chatPendingImage.base64 } });
     }
+    if (text) userContent.push({ type: 'text', text });
+    if (!text && !chatPendingImage) return;
 
     appendChatMsg('user', text || '(imagen adjunta)', chatPendingImage?.dataUrl);
     clearChatPendingImg();
     showTyping();
 
-    // Add to history
-    chatHistory.push({ role: 'user', parts: userParts });
+    chatHistory.push({ role: 'user', content: userContent });
 
     try {
-        const GEMINI_MODEL = 'gemini-1.5-flash-latest';
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-        const chatSystemPrompt = buildChatSystemPrompt();
-
-        const response = await fetch(endpoint, {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true'
+            },
             body: JSON.stringify({
-                system_instruction: { parts: [{ text: chatSystemPrompt }] },
-                contents: chatHistory,
-                generationConfig: { temperature: 0.3, maxOutputTokens: 1024 }
+                model: 'claude-3-5-sonnet-20241022',
+                max_tokens: 1024,
+                system: buildChatSystemPrompt(),
+                messages: chatHistory
             })
         });
 
@@ -364,8 +366,8 @@ async function sendChatMessage() {
         }
 
         const data = await response.json();
-        const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sin respuesta.';
-        chatHistory.push({ role: 'model', parts: [{ text: replyText }] });
+        const replyText = data.content?.[0]?.text || 'Sin respuesta.';
+        chatHistory.push({ role: 'assistant', content: [{ type: 'text', text: replyText }] });
         hideTyping();
         appendChatMsg('ai', replyText);
 

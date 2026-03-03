@@ -101,7 +101,7 @@
                 <div class="loading-spinner"></div>
                 <div>
                     <p class="loading-title">Analizando imagen...</p>
-                    <p class="loading-sub">Gemini 1.5 Flash está procesando el gráfico</p>
+                    <p class="loading-sub">Claude 3.5 Sonnet está procesando el gráfico</p>
                 </div>
             </div>
 
@@ -113,7 +113,7 @@
                 <div class="chat-header">
                     <div class="chat-header-dot"></div>
                     <span class="chat-header-title">🔍 Investigación de Causa Raíz</span>
-                    <span class="chat-header-model">Gemini 1.5 Flash</span>
+                    <span class="chat-header-model">Claude 3.5 Sonnet</span>
                 </div>
                 <div class="chat-messages" id="chatMessages"></div>
                 <!-- Pending image preview -->
@@ -174,15 +174,15 @@
                         <rect x="3" y="11" width="18" height="11" rx="2" />
                         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                     </svg>
-                    Google Gemini API Key
+                    Anthropic API Key
                 </label>
                 <div class="api-key-row">
-                    <input type="password" id="apiKeyInput" placeholder="AIza..." class="settings-input" />
+                    <input type="password" id="apiKeyInput" placeholder="sk-ant-..." class="settings-input" />
                     <button class="btn-ghost" onclick="toggleApiKey()">Ver</button>
                 </div>
                 <button class="btn btn-primary btn-sm" onclick="saveApiKey()">Guardar clave</button>
-                <p class="settings-hint">Obtén tu clave en <a href="https://aistudio.google.com/apikey"
-                        target="_blank">aistudio.google.com</a></p>
+                <p class="settings-hint">Obtén tu clave en <a href="https://console.anthropic.com/settings/keys"
+                        target="_blank">console.anthropic.com</a></p>
             </div>
 
             <div class="settings-card">
@@ -203,8 +203,9 @@
 
             <div class="settings-card">
                 <label class="settings-label">Acerca de</label>
-                <div class="about-row"><span>Versión</span><span>1.2.0</span></div>
-                <div class="about-row"><span>Modelo IA</span><span>Gemini 1.5 Flash</span></div>
+                <div class="about-row"><span>Versión</span><span>1.3.0</span></div>
+                <div class="about-row"><span>Modelo IA</span><span>Claude 3.5 Sonnet</span></div>
+                <div class="about-row"><span>Proveedor</span><span>Anthropic</span></div>
                 <div class="about-row"><span>Modo KB</span><span>TF-IDF embebido</span></div>
             </div>
         </section>
