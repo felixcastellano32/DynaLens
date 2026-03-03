@@ -187,26 +187,28 @@ async function runAnalysis() {
         const systemPrompt = buildSystemPrompt(kbContext);
         const mimeMatch = (currentImageDataUrl || '').match(/^data:(image\/[a-zA-Z+]+);base64,/);
         const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+        const imageDataUrl = `data:${mimeType};base64,${currentImageBase64}`;
 
-        // Anthropic Claude 3.5 Sonnet
+        // Groq API (OpenAI-compatible) with Llama 3.2 90B Vision
         const firstUserContent = [
-            { type: 'image', source: { type: 'base64', media_type: mimeType, data: currentImageBase64 } },
+            { type: 'image_url', image_url: { url: imageDataUrl } },
             { type: 'text', text: 'Analiza esta captura de pantalla de Dynatrace y responde ÚnicaMENTE con JSON válido, sin markdown.' }
         ];
 
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01',
-                'anthropic-dangerous-direct-browser-access': 'true'
+                'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: 'claude-3-5-sonnet-20241022',
+                model: 'llama-3.2-90b-vision-preview',
                 max_tokens: 2048,
-                system: systemPrompt,
-                messages: [{ role: 'user', content: firstUserContent }]
+                temperature: 0.2,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: firstUserContent }
+                ]
             })
         });
 
@@ -216,13 +218,13 @@ async function runAnalysis() {
         }
 
         const data = await response.json();
-        const raw = data.content?.[0]?.text || '';
+        const raw = data.choices?.[0]?.message?.content || '';
         const analysis = parseAnalysis(raw, kbContext);
         currentAnalysis = analysis;
 
-        // Store first turn in Anthropic format
+        // Store initial turn in OpenAI format
         chatHistory.push({ role: 'user', content: firstUserContent });
-        chatHistory.push({ role: 'assistant', content: [{ type: 'text', text: raw }] });
+        chatHistory.push({ role: 'assistant', content: raw });
 
         renderResults(analysis);
         saveHistoryItem(analysis, currentImageDataUrl);
@@ -329,34 +331,38 @@ async function sendChatMessage() {
     document.getElementById('chatSendBtn').disabled = true;
     input.value = '';
 
-    // Build user content blocks (Anthropic format)
+    // Build user content (OpenAI format)
     const userContent = [];
     if (chatPendingImage) {
-        userContent.push({ type: 'image', source: { type: 'base64', media_type: chatPendingImage.mimeType, data: chatPendingImage.base64 } });
+        const imgUrl = chatPendingImage.dataUrl;
+        userContent.push({ type: 'image_url', image_url: { url: imgUrl } });
     }
     if (text) userContent.push({ type: 'text', text });
-    if (!text && !chatPendingImage) return;
 
     appendChatMsg('user', text || '(imagen adjunta)', chatPendingImage?.dataUrl);
     clearChatPendingImg();
     showTyping();
 
-    chatHistory.push({ role: 'user', content: userContent });
+    chatHistory.push({ role: 'user', content: userContent.length === 1 && userContent[0].type === 'text' ? text : userContent });
 
     try {
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        // Build full messages: system + history
+        const messages = [
+            { role: 'system', content: buildChatSystemPrompt() },
+            ...chatHistory
+        ];
+
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01',
-                'anthropic-dangerous-direct-browser-access': 'true'
+                'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: 'claude-3-5-sonnet-20241022',
+                model: 'llama-3.2-90b-vision-preview',
                 max_tokens: 1024,
-                system: buildChatSystemPrompt(),
-                messages: chatHistory
+                temperature: 0.3,
+                messages
             })
         });
 
@@ -366,8 +372,8 @@ async function sendChatMessage() {
         }
 
         const data = await response.json();
-        const replyText = data.content?.[0]?.text || 'Sin respuesta.';
-        chatHistory.push({ role: 'assistant', content: [{ type: 'text', text: replyText }] });
+        const replyText = data.choices?.[0]?.message?.content || 'Sin respuesta.';
+        chatHistory.push({ role: 'assistant', content: replyText });
         hideTyping();
         appendChatMsg('ai', replyText);
 

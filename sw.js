@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dynalens-v5';
+const CACHE_NAME = 'dynalens-v6';
 const ASSETS = [
   '/DynaLens/',
   '/DynaLens/index.html',
@@ -27,7 +27,7 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   // Network first for Gemini API calls, cache first for static assets
-  if (e.request.url.includes('api.anthropic.com')) {
+  if (e.request.url.includes('api.groq.com')) {
     e.respondWith(fetch(e.request));
     return;
   }
