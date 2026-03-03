@@ -9,6 +9,11 @@ let currentImageBase64 = null;
 let currentAnalysis = null;
 let currentImageDataUrl = null;
 
+// ── Chat state ──────────────────────────────────────────────────
+let chatHistory = [];          // [{role, parts:[{text}|{inline_data}]}]
+let chatPendingImage = null;   // {base64, mimeType, dataUrl} for next send
+let chatBusy = false;
+
 // ── Init ────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     registerSW();
@@ -164,44 +169,41 @@ async function runAnalysis() {
     }
     if (!currentImageBase64) return;
 
+    // Reset chat
+    chatHistory = [];
+    chatPendingImage = null;
+    chatBusy = false;
+
     // Loading state
     document.getElementById('loadingCard').classList.remove('hidden');
     document.getElementById('resultsSection').classList.add('hidden');
+    document.getElementById('chatSection').classList.add('hidden');
     document.getElementById('analyzeBtn').disabled = true;
 
     try {
-        // Build KB context
         const kbContext = getRelevantContext(
             'dynatrace alert metric anomaly spike baseline deviation response time cpu memory'
         );
-
         const systemPrompt = buildSystemPrompt(kbContext);
-
-        // Detect image MIME type from dataUrl prefix
         const mimeMatch = (currentImageDataUrl || '').match(/^data:(image\/[a-zA-Z+]+);base64,/);
         const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
 
-        // Google Gemini 2.0 Flash API (generateContent)
-        const GEMINI_MODEL = 'gemini-2.0-flash';
+        const GEMINI_MODEL = 'gemini-1.5-flash';
         const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+
+        // First turn: image + analysis request
+        const firstUserParts = [
+            { text: 'Analiza esta captura de pantalla de Dynatrace y responde SOLO con JSON válido.' },
+            { inline_data: { mime_type: mimeType, data: currentImageBase64 } }
+        ];
 
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 system_instruction: { parts: [{ text: systemPrompt }] },
-                contents: [{
-                    role: 'user',
-                    parts: [
-                        { text: 'Analiza esta captura de pantalla de Dynatrace y responde SOLO con JSON válido.' },
-                        { inline_data: { mime_type: mimeType, data: currentImageBase64 } }
-                    ]
-                }],
-                generationConfig: {
-                    temperature: 0.2,
-                    maxOutputTokens: 2048,
-                    responseMimeType: 'application/json'
-                }
+                contents: [{ role: 'user', parts: firstUserParts }],
+                generationConfig: { temperature: 0.2, maxOutputTokens: 2048, responseMimeType: 'application/json' }
             })
         });
 
@@ -215,8 +217,16 @@ async function runAnalysis() {
         const analysis = parseAnalysis(raw, kbContext);
         currentAnalysis = analysis;
 
+        // Save first turn into history (without JSON, use summary instead)
+        chatHistory.push({ role: 'user', parts: firstUserParts });
+        chatHistory.push({
+            role: 'model',
+            parts: [{ text: raw }]
+        });
+
         renderResults(analysis);
         saveHistoryItem(analysis, currentImageDataUrl);
+        openChat(analysis);
 
     } catch (err) {
         showToast(`❌ ${err.message}`);
@@ -224,6 +234,154 @@ async function runAnalysis() {
     } finally {
         document.getElementById('loadingCard').classList.add('hidden');
         document.getElementById('analyzeBtn').disabled = false;
+    }
+}
+
+// ── Chat Conversacional ───────────────────────────────────────────
+function openChat(analysis) {
+    const section = document.getElementById('chatSection');
+    section.classList.remove('hidden');
+    const msgs = document.getElementById('chatMessages');
+    msgs.innerHTML = '';
+    // Opening message from AI
+    const sev = analysis.severity || 'unknown';
+    const sevLabel = { ok: 'sin anomalías críticas', warning: 'con advertencias', critical: 'CRÍTICA', unknown: 'de estado desconocido' }[sev];
+    const opening = `He completado el análisis inicial: situación ${sevLabel}. 
+
+Para investigar la causa raíz necesito más contexto. ¿Puedes adjuntar otra captura? Por ejemplo:
+• Vista de la traza distribuida del servicio afectado
+• Gráfica de CPU/memoria del host en el mismo período
+• Logs o eventos de Dynatrace relacionados
+
+O cuestioname directamente: ¿qué ocurrió antes del pico?`;
+    appendChatMsg('ai', opening);
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function appendChatMsg(role, text, imageDataUrl) {
+    const msgs = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.className = `chat-msg ${role}`;
+    const avatar = role === 'ai' ? '🔭' : '👤';
+    let bubbleContent = '';
+    if (imageDataUrl) {
+        bubbleContent += `<img class="chat-img-thumb" src="${imageDataUrl}" alt="imagen adjunta">`;
+    }
+    bubbleContent += escHtml(text).replace(/\n/g, '<br>');
+    div.innerHTML = `
+      <div class="chat-avatar">${avatar}</div>
+      <div class="chat-bubble">${bubbleContent}</div>`;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+}
+
+function showTyping() {
+    const msgs = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.className = 'chat-msg ai';
+    div.id = 'chatTyping';
+    div.innerHTML = `<div class="chat-avatar">🔭</div><div class="chat-bubble"><div class="chat-typing"><span></span><span></span><span></span></div></div>`;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+}
+function hideTyping() {
+    document.getElementById('chatTyping')?.remove();
+}
+
+function chatAttachImage() {
+    document.getElementById('chatFileInput').click();
+}
+
+function onChatFileSelected(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        const dataUrl = ev.target.result;
+        const mimeMatch = dataUrl.match(/^data:(image\/[a-zA-Z+]+);base64,/);
+        const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+        const base64 = dataUrl.split(',')[1];
+        chatPendingImage = { base64, mimeType, dataUrl };
+        // Show pending preview
+        const prev = document.getElementById('chatPendingImg');
+        prev.classList.remove('hidden');
+        prev.querySelector('img').src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+}
+
+function clearChatPendingImg() {
+    chatPendingImage = null;
+    document.getElementById('chatPendingImg').classList.add('hidden');
+}
+
+async function sendChatMessage() {
+    if (chatBusy) return;
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+    if (!text && !chatPendingImage) return;
+
+    const apiKey = localStorage.getItem('dynalens_api_key') || '';
+    if (!apiKey) { showToast('⚠️ Configura la API key'); return; }
+
+    chatBusy = true;
+    document.getElementById('chatSendBtn').disabled = true;
+    input.value = '';
+
+    // Build user parts
+    const userParts = [];
+    if (text) userParts.push({ text });
+    if (chatPendingImage) {
+        userParts.push({ inline_data: { mime_type: chatPendingImage.mimeType, data: chatPendingImage.base64 } });
+    }
+
+    appendChatMsg('user', text || '(imagen adjunta)', chatPendingImage?.dataUrl);
+    clearChatPendingImg();
+    showTyping();
+
+    // Add to history
+    chatHistory.push({ role: 'user', parts: userParts });
+
+    try {
+        const GEMINI_MODEL = 'gemini-1.5-flash';
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+        const chatSystemPrompt = buildChatSystemPrompt();
+
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                system_instruction: { parts: [{ text: chatSystemPrompt }] },
+                contents: chatHistory,
+                generationConfig: { temperature: 0.3, maxOutputTokens: 1024 }
+            })
+        });
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err?.error?.message || `HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sin respuesta.';
+        chatHistory.push({ role: 'model', parts: [{ text: replyText }] });
+        hideTyping();
+        appendChatMsg('ai', replyText);
+
+    } catch (err) {
+        hideTyping();
+        appendChatMsg('ai', `❌ Error: ${err.message}`);
+    } finally {
+        chatBusy = false;
+        document.getElementById('chatSendBtn').disabled = false;
+    }
+}
+
+function chatInputKeydown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendChatMessage();
     }
 }
 
@@ -258,6 +416,25 @@ Reglas de severidad:
         prompt += `\n\nCONTEXTO DE BASE DE CONOCIMIENTO (úsalo para enriquecer recomendaciones):\n${kbContext}`;
     }
     return prompt;
+}
+
+function buildChatSystemPrompt() {
+    return `Eres un experto SRE e investigador de incidencias especializado en Dynatrace. 
+Ya has realizado el análisis inicial de una captura. Ahora estás en modo INVESTIGACIÓN DE CAUSA RAÍZ.
+
+Tu objetivo es llegar a la causa raíz de la incidencia mediante diálogo con el ingeniero.
+Sigue este proceso:
+1. Haz preguntas específicas y pide capturas adicionales cuando necesites más información
+2. Si el usuario adjunta una nueva imagen, analízala en el contexto de lo ya visto
+3. Formula hipotésis de causa raíz y guía al ingeniero a confirmarlas o refutarlas
+4. Cuando identifiques la causa raíz con alta confianza, concluye con: 
+   "CAUSA RAÍZ IDENTIFICADA: [descripción]" y proporciona el plan de remediación
+
+Reglas:
+- Responde siempre en español
+- Sé conciso pero técnico y preciso
+- Si ves una nueva imagen, empieza mencionando qué observas en ella
+- Propón siempre un siguiente paso claro o una pregunta concreta`;
 }
 
 function parseAnalysis(raw, kbContext) {

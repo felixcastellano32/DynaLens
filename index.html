@@ -101,12 +101,50 @@
                 <div class="loading-spinner"></div>
                 <div>
                     <p class="loading-title">Analizando imagen...</p>
-                    <p class="loading-sub">Gemini 2.5 Pro está procesando el gráfico</p>
+                    <p class="loading-sub">Gemini 1.5 Flash está procesando el gráfico</p>
                 </div>
             </div>
 
             <!-- Results -->
             <div id="resultsSection" class="hidden"></div>
+
+            <!-- Chat conversacional de causa raíz -->
+            <div id="chatSection" class="chat-section hidden">
+                <div class="chat-header">
+                    <div class="chat-header-dot"></div>
+                    <span class="chat-header-title">🔍 Investigación de Causa Raíz</span>
+                    <span class="chat-header-model">Gemini 1.5 Flash</span>
+                </div>
+                <div class="chat-messages" id="chatMessages"></div>
+                <!-- Pending image preview -->
+                <div class="chat-pending-img hidden" id="chatPendingImg">
+                    <img src="" alt="img pendiente">
+                    <span>Imagen lista para enviar</span>
+                    <button onclick="clearChatPendingImg()">✕</button>
+                </div>
+                <!-- Input row -->
+                <div class="chat-input-row">
+                    <button class="chat-attach-btn" onclick="chatAttachImage()" title="Adjuntar imagen">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path
+                                d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                        </svg>
+                    </button>
+                    <textarea class="chat-input" id="chatInput" placeholder="Pregunta o describe lo que ves..." rows="1"
+                        onkeydown="chatInputKeydown(event)"></textarea>
+                    <button class="chat-send-btn" id="chatSendBtn" onclick="sendChatMessage()" title="Enviar">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M22 2L11 13" />
+                            <path d="M22 2L15 22 11 13 2 9l20-7z" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linejoin="round" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Hidden file input for chat images -->
+            <input type="file" id="chatFileInput" accept="image/*" capture="environment" class="hidden"
+                onchange="onChatFileSelected(event)">
         </section>
 
         <!-- ── HISTORY TAB ── -->
@@ -165,8 +203,8 @@
 
             <div class="settings-card">
                 <label class="settings-label">Acerca de</label>
-                <div class="about-row"><span>Versión</span><span>1.1.0</span></div>
-                <div class="about-row"><span>Modelo IA</span><span>Gemini 2.0 Flash</span></div>
+                <div class="about-row"><span>Versión</span><span>1.2.0</span></div>
+                <div class="about-row"><span>Modelo IA</span><span>Gemini 1.5 Flash</span></div>
                 <div class="about-row"><span>Modo KB</span><span>TF-IDF embebido</span></div>
             </div>
         </section>
