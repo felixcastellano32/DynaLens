@@ -1009,9 +1009,7 @@ a {
 
 .chat-header {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
+  flex-direction: column;
   border-bottom: 1px solid var(--border);
   background: var(--bg-card);
 }
@@ -1264,4 +1262,370 @@ a {
   font-size: 1rem;
   padding: 0 4px;
   margin-left: auto;
+}
+
+/* ── Chat Header Redesign – handled above in .chat-header, .chat-header-top */
+
+/* ── Investigation Phase Banner ─────────────────────────────────── */
+.investigation-phase {
+  background: linear-gradient(135deg, rgba(0, 200, 255, 0.08) 0%, rgba(120, 86, 255, 0.08) 100%);
+  border-top: 1px solid var(--border);
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.phase-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.phase-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.3px;
+}
+
+.phase-hypo {
+  font-size: 0.72rem;
+  color: var(--text-sec);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.confidence-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+  min-width: 90px;
+}
+
+.confidence-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-sec);
+}
+
+.confidence-bar {
+  width: 90px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.confidence-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.confidence-fill.low {
+  background: linear-gradient(90deg, #F85149, #ff8c42);
+}
+
+.confidence-fill.medium {
+  background: linear-gradient(90deg, #D29922, #f0c040);
+}
+
+.confidence-fill.high {
+  background: linear-gradient(90deg, #2EA043, #39d353);
+  box-shadow: 0 0 8px rgba(46, 160, 67, 0.5);
+}
+
+/* ── Next Steps Section ─────────────────────────────────────────── */
+.next-steps-container {
+  margin-bottom: 16px;
+}
+
+.next-steps-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.next-steps-title svg {
+  width: 15px;
+  height: 15px;
+}
+
+.next-steps-subtitle {
+  font-size: 0.78rem;
+  color: var(--text-sec);
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.next-steps-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.next-step-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.next-step-card.primary {
+  border-color: rgba(0, 200, 255, 0.35);
+  background: linear-gradient(135deg, rgba(0, 200, 255, 0.06) 0%, var(--bg-card) 60%);
+  box-shadow: 0 0 20px rgba(0, 200, 255, 0.08);
+}
+
+.next-step-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 16px rgba(0, 200, 255, 0.12);
+}
+
+.next-step-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.next-step-priority {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.next-step-screen {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--text-primary);
+}
+
+.next-step-why {
+  font-size: 0.82rem;
+  color: var(--text-sec);
+  line-height: 1.4;
+  margin-bottom: 10px;
+}
+
+.next-step-why strong {
+  color: var(--text-primary);
+}
+
+.next-step-nav {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.next-step-nav-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.next-step-nav-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 0;
+  counter-reset: nav-counter;
+}
+
+.next-step-nav-list li {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  line-height: 1.4;
+  padding-left: 18px;
+  position: relative;
+  counter-increment: nav-counter;
+}
+
+.next-step-nav-list li::before {
+  content: counter(nav-counter) ".";
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.next-step-look {
+  font-size: 0.8rem;
+  color: var(--text-sec);
+  line-height: 1.4;
+  background: rgba(0, 200, 255, 0.05);
+  border-left: 2px solid var(--accent);
+  padding: 6px 10px;
+  border-radius: 0 6px 6px 0;
+}
+
+.next-step-look strong {
+  color: var(--accent);
+}
+
+/* ── Screen Badge ───────────────────────────────────────────────── */
+.screen-badge {
+  margin-left: auto;
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: rgba(0, 200, 255, 0.12);
+  color: var(--accent);
+  padding: 3px 9px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 200, 255, 0.2);
+  white-space: nowrap;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Hypothesis Box ─────────────────────────────────────────────── */
+.hypothesis-box {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: linear-gradient(135deg, rgba(120, 86, 255, 0.1) 0%, rgba(0, 200, 255, 0.06) 100%);
+  border: 1px solid rgba(120, 86, 255, 0.25);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.hypothesis-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.hypothesis-box p {
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* ── Result: Problem text ───────────────────────────────────────── */
+.result-problem {
+  font-size: 0.82rem;
+  color: var(--text-sec);
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  line-height: 1.5;
+}
+
+/* ── Anomaly values ─────────────────────────────────────────────── */
+.anomaly-values {
+  font-size: 0.75rem;
+  color: var(--text-sec);
+  margin-top: 2px;
+}
+
+.anomaly-values strong {
+  color: var(--warn);
+}
+
+/* ── Raw pre ─────────────────────────────────────────────────────── */
+.raw-pre {
+  font-size: 0.72rem;
+  color: #4CAF50;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ── Chat Markdown Styles ───────────────────────────────────────── */
+.chat-bubble strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.chat-bubble em {
+  font-style: italic;
+  color: var(--text-sec);
+}
+
+.inline-code {
+  background: rgba(0, 200, 255, 0.1);
+  color: var(--accent);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85em;
+}
+
+.md-list-item {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  margin: 3px 0;
+  line-height: 1.5;
+}
+
+.md-list-num {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.85em;
+  flex-shrink: 0;
+  min-width: 18px;
+}
+
+.md-bullet {
+  color: var(--accent);
+  flex-shrink: 0;
+  line-height: 1.5;
+}
+
+/* ── Chat image container ───────────────────────────────────────── */
+.chat-img-container {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 8px;
+}
+
+.chat-img-label {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  background: rgba(0, 0, 0, 0.75);
+  color: var(--accent);
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  backdrop-filter: blur(4px);
+}
+
+/* ── History screen pill ────────────────────────────────────────── */
+.history-screen {
+  font-size: 0.68rem;
+  color: var(--accent);
+  background: rgba(0, 200, 255, 0.08);
+  border-radius: 4px;
+  padding: 1px 5px;
+  display: inline-block;
+  margin-bottom: 2px;
 }

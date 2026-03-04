@@ -101,19 +101,25 @@
                 <div class="loading-spinner"></div>
                 <div>
                     <p class="loading-title">Analizando imagen...</p>
-                    <p class="loading-sub">Llama 4 Maverick está procesando el gráfico</p>
+                    <p class="loading-sub">Identificando pantalla Dynatrace y generando guía de investigación...</p>
                 </div>
             </div>
 
             <!-- Results -->
             <div id="resultsSection" class="hidden"></div>
 
+            <!-- Next Steps guided navigation -->
+            <div id="nextStepsSection" class="hidden"></div>
+
             <!-- Chat conversacional de causa raíz -->
             <div id="chatSection" class="chat-section hidden">
                 <div class="chat-header">
-                    <div class="chat-header-dot"></div>
-                    <span class="chat-header-title">🔍 Investigación de Causa Raíz</span>
-                    <span class="chat-header-model">Groq · Llama 4 Maverick</span>
+                    <div class="chat-header-top">
+                        <div class="chat-header-dot"></div>
+                        <span class="chat-header-title">🔍 Investigación de Causa Raíz</span>
+                        <span class="chat-header-model">Groq · Llama 4 Maverick</span>
+                    </div>
+                    <div class="investigation-phase hidden" id="investigationPhase"></div>
                 </div>
                 <div class="chat-messages" id="chatMessages"></div>
                 <!-- Pending image preview -->
@@ -203,10 +209,10 @@
 
             <div class="settings-card">
                 <label class="settings-label">Acerca de</label>
-                <div class="about-row"><span>Versión</span><span>1.4.0</span></div>
+                <div class="about-row"><span>Versión</span><span>2.0.0</span></div>
                 <div class="about-row"><span>Modelo IA</span><span>Llama 4 Maverick</span></div>
                 <div class="about-row"><span>Proveedor</span><span>Groq (gratuito)</span></div>
-                <div class="about-row"><span>Modo KB</span><span>TF-IDF embebido</span></div>
+                <div class="about-row"><span>Motor</span><span>Investigación guiada v2</span></div>
             </div>
         </section>
 
