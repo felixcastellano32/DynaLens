@@ -48,6 +48,7 @@ const DYNATRACE_SCREENS = {
 document.addEventListener('DOMContentLoaded', () => {
     registerSW();
     loadApiKey();
+    initProvider();
     renderKbDocs();
     renderHistory();
     setupFileInput();
@@ -89,12 +90,12 @@ function setupFileInput() {
     });
 }
 
-// ── API Key ──────────────────────────────────────────────────────
+// ── API Key (Groq) ──────────────────────────────────────────────
 function saveApiKey() {
     const key = document.getElementById('apiKeyInput').value.trim();
     if (!key) { showToast('La clave no puede estar vacía'); return; }
     localStorage.setItem('dynalens_api_key', key);
-    showToast('✓ Clave guardada');
+    showToast('✓ Clave Groq guardada');
 }
 function loadApiKey() {
     const key = localStorage.getItem('dynalens_api_key') || '';
@@ -103,6 +104,107 @@ function loadApiKey() {
 function toggleApiKey() {
     const input = document.getElementById('apiKeyInput');
     input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+// ── Azure OpenAI / Copilot Settings ─────────────────────────────
+function saveAzureSettings() {
+    const endpoint = document.getElementById('azureEndpoint').value.trim();
+    const deployment = document.getElementById('azureDeployment').value.trim();
+    const apiKey = document.getElementById('azureApiKey').value.trim();
+    const apiVersion = document.getElementById('azureApiVersion').value.trim() || '2024-02-01';
+    if (!endpoint || !deployment || !apiKey) {
+        showToast('⚠️ Rellena endpoint, deployment y API key');
+        return;
+    }
+    localStorage.setItem('dynalens_azure_endpoint', endpoint);
+    localStorage.setItem('dynalens_azure_deployment', deployment);
+    localStorage.setItem('dynalens_azure_key', apiKey);
+    localStorage.setItem('dynalens_azure_version', apiVersion);
+    showToast('✓ Configuración Azure guardada');
+}
+function toggleAzureKey() {
+    const input = document.getElementById('azureApiKey');
+    input.type = input.type === 'password' ? 'text' : 'password';
+}
+function loadAzureSettings() {
+    const el = (id) => document.getElementById(id);
+    el('azureEndpoint').value = localStorage.getItem('dynalens_azure_endpoint') || '';
+    el('azureDeployment').value = localStorage.getItem('dynalens_azure_deployment') || '';
+    el('azureApiKey').value = localStorage.getItem('dynalens_azure_key') || '';
+    el('azureApiVersion').value = localStorage.getItem('dynalens_azure_version') || '2024-02-01';
+}
+
+// ── Provider Selector ────────────────────────────────────────────
+function getProvider() {
+    return localStorage.getItem('dynalens_provider') || 'groq';
+}
+function selectProvider(name) {
+    localStorage.setItem('dynalens_provider', name);
+    document.getElementById('btnProviderGroq').classList.toggle('active', name === 'groq');
+    document.getElementById('btnProviderAzure').classList.toggle('active', name === 'azure');
+    document.getElementById('settingsGroq').classList.toggle('hidden', name !== 'groq');
+    document.getElementById('settingsAzure').classList.toggle('hidden', name !== 'azure');
+    updateModelLabel();
+}
+function updateModelLabel() {
+    const lbl = document.getElementById('chatModelLabel');
+    if (!lbl) return;
+    if (getProvider() === 'azure') {
+        const dep = localStorage.getItem('dynalens_azure_deployment') || 'Azure OpenAI';
+        lbl.textContent = `Azure · ${dep}`;
+    } else {
+        lbl.textContent = 'Groq · Llama 4 Maverick';
+    }
+}
+function initProvider() {
+    const p = getProvider();
+    selectProvider(p);
+    loadAzureSettings();
+}
+
+// ── Unified AI Call ──────────────────────────────────────────────
+async function callAI({ messages, maxTokens = 2000, temperature = 0.2 }) {
+    const provider = getProvider();
+
+    if (provider === 'azure') {
+        const endpoint = localStorage.getItem('dynalens_azure_endpoint')?.replace(/\/$/, '');
+        const deployment = localStorage.getItem('dynalens_azure_deployment');
+        const apiKey = localStorage.getItem('dynalens_azure_key');
+        const apiVersion = localStorage.getItem('dynalens_azure_version') || '2024-02-01';
+        if (!endpoint || !deployment || !apiKey) {
+            throw new Error('Configura los datos de Azure OpenAI en Ajustes');
+        }
+        const url = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`;
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
+            body: JSON.stringify({ messages, max_tokens: maxTokens, temperature })
+        });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err?.error?.message || `Azure HTTP ${resp.status}`);
+        }
+        return resp.json();
+    } else {
+        // Groq
+        const apiKey = localStorage.getItem('dynalens_api_key') || '';
+        if (!apiKey) throw new Error('Configura tu API key de Groq en Ajustes');
+        const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+                max_tokens: maxTokens,
+                temperature,
+                messages
+            })
+        });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err?.error?.message || `HTTP ${resp.status}`);
+        }
+        return resp.json();
+    }
 }
 
 // ── Knowledge Base ───────────────────────────────────────────────
@@ -183,12 +285,6 @@ function getRelevantContext(queryText, topK = 4) {
 
 // ── Analysis ─────────────────────────────────────────────────────
 async function runAnalysis() {
-    const apiKey = localStorage.getItem('dynalens_api_key') || '';
-    if (!apiKey) {
-        showToast('⚠️ Configura tu API key en Ajustes');
-        showTab('settings');
-        return;
-    }
     if (!currentImageBase64) return;
 
     // Reset investigation state
@@ -227,29 +323,15 @@ async function runAnalysis() {
             { type: 'text', text: 'Analiza esta captura de pantalla de Dynatrace. Responde ÚNICAMENTE con JSON válido, sin markdown ni texto adicional.' }
         ];
 
-        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
-                max_tokens: 3000,
-                temperature: 0.1,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: firstUserContent }
-                ]
-            })
+        const data = await callAI({
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: firstUserContent }
+            ],
+            maxTokens: 3000,
+            temperature: 0.1
         });
 
-        if (!response.ok) {
-            const err = await response.json().catch(() => ({}));
-            throw new Error(err?.error?.message || `HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
         const raw = data.choices?.[0]?.message?.content || '';
         const analysis = parseAnalysis(raw, kbContext);
         currentAnalysis = analysis;
@@ -260,7 +342,7 @@ async function runAnalysis() {
         }
         if (analysis.service) investigationState.serviceName = analysis.service;
         if (analysis.host) investigationState.hostName = analysis.host;
-        investigationState.confidence = 15; // Starting confidence after first screen
+        investigationState.confidence = 15;
 
         // Store initial turn
         chatHistory.push({ role: 'user', content: firstUserContent });
@@ -464,11 +546,15 @@ function openChat(analysis) {
         }
     }
 
-    opening += `*Haz la foto de esa pantalla, adjúntala aquí y continuaremos la investigación.*`;
+    opening += `*📎 Haz la foto de esa pantalla, adjúntala con el botón 🖼️ o pega con Ctrl+V/Cmd+V y continuaremos la investigación.*`;
 
     updatePhaseBanner();
+    updateModelLabel();
     appendChatMsg('ai', opening);
-    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Safari fix: use setTimeout to ensure DOM is laid out before scrolling
+    setTimeout(() => {
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
 }
 
 // ── Phase Banner ─────────────────────────────────────────────────
@@ -552,15 +638,39 @@ function clearChatPendingImg() {
     document.getElementById('chatPendingImg').classList.add('hidden');
 }
 
+// ── Paste screenshot from clipboard ─────────────────────────────
+function handleChatPaste(e) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+        if (item.type.startsWith('image/')) {
+            e.preventDefault();
+            const file = item.getAsFile();
+            if (!file) continue;
+            const reader = new FileReader();
+            reader.onload = ev => {
+                const dataUrl = ev.target.result;
+                const mimeMatch = dataUrl.match(/^data:(image\/[a-zA-Z+]+);base64,/);
+                const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+                const base64 = dataUrl.split(',')[1];
+                chatPendingImage = { base64, mimeType, dataUrl };
+                const prev = document.getElementById('chatPendingImg');
+                prev.classList.remove('hidden');
+                prev.querySelector('img').src = dataUrl;
+                showToast('📎 Pantallazo pegado — pulsa Enviar');
+            };
+            reader.readAsDataURL(file);
+            break;
+        }
+    }
+}
+
 // ── Send Chat Message ────────────────────────────────────────────
 async function sendChatMessage() {
     if (chatBusy) return;
     const input = document.getElementById('chatInput');
     const text = input.value.trim();
     if (!text && !chatPendingImage) return;
-
-    const apiKey = localStorage.getItem('dynalens_api_key') || '';
-    if (!apiKey) { showToast('⚠️ Configura la API key'); return; }
 
     chatBusy = true;
     document.getElementById('chatSendBtn').disabled = true;
@@ -577,7 +687,7 @@ async function sendChatMessage() {
     }
     if (text) userContent.push({ type: 'text', text });
 
-    appendChatMsg('user', text || '(nueva captura adjunta)', pendingDataUrl);
+    appendChatMsg('user', text || '(pantallazo adjunto)', pendingDataUrl);
     clearChatPendingImg();
     showTyping();
 
@@ -592,26 +702,7 @@ async function sendChatMessage() {
             ...chatHistory
         ];
 
-        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
-                max_tokens: 2000,
-                temperature: 0.2,
-                messages
-            })
-        });
-
-        if (!response.ok) {
-            const err = await response.json().catch(() => ({}));
-            throw new Error(err?.error?.message || `HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
+        const data = await callAI({ messages, maxTokens: 2000, temperature: 0.2 });
         const replyText = data.choices?.[0]?.message?.content || 'Sin respuesta.';
         chatHistory.push({ role: 'assistant', content: replyText });
 

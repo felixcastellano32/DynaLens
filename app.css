@@ -764,6 +764,67 @@ a {
   color: var(--text-primary);
 }
 
+/* ── Provider Toggle ─────────────────────────────────────────────── */
+.provider-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.provider-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-base);
+  color: var(--text-sec);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.provider-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--text-primary);
+}
+
+.provider-btn:not(.active):hover {
+  border-color: rgba(0, 200, 255, 0.3);
+  color: var(--text-primary);
+}
+
+.provider-icon {
+  font-size: 1rem;
+}
+
+/* ── Azure Fields ─────────────────────────────────────────────────── */
+.azure-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.azure-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-sec);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.azure-info {
+  background: rgba(0, 200, 255, 0.07);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--text-sec) !important;
+}
+
 /* KB doc list */
 .kb-doc-list {
   display: flex;

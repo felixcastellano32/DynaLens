@@ -117,7 +117,7 @@
                     <div class="chat-header-top">
                         <div class="chat-header-dot"></div>
                         <span class="chat-header-title">🔍 Investigación de Causa Raíz</span>
-                        <span class="chat-header-model">Groq · Llama 4 Maverick</span>
+                        <span class="chat-header-model" id="chatModelLabel">Groq · Llama 4 Maverick</span>
                     </div>
                     <div class="investigation-phase hidden" id="investigationPhase"></div>
                 </div>
@@ -130,14 +130,16 @@
                 </div>
                 <!-- Input row -->
                 <div class="chat-input-row">
-                    <button class="chat-attach-btn" onclick="chatAttachImage()" title="Adjuntar imagen">
+                    <button class="chat-attach-btn" onclick="chatAttachImage()" title="Adjuntar pantallazo">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path
-                                d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                            <rect x="3" y="3" width="18" height="18" rx="3" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
                         </svg>
                     </button>
-                    <textarea class="chat-input" id="chatInput" placeholder="Pregunta o describe lo que ves..." rows="1"
-                        onkeydown="chatInputKeydown(event)"></textarea>
+                    <textarea class="chat-input" id="chatInput"
+                        placeholder="Adjunta un pantallazo o escribe tu pregunta..." rows="1"
+                        onkeydown="chatInputKeydown(event)" onpaste="handleChatPaste(event)"></textarea>
                     <button class="chat-send-btn" id="chatSendBtn" onclick="sendChatMessage()" title="Enviar">
                         <svg viewBox="0 0 24 24" fill="currentColor">
                             <path d="M22 2L11 13" />
@@ -148,9 +150,8 @@
                 </div>
             </div>
 
-            <!-- Hidden file input for chat images -->
-            <input type="file" id="chatFileInput" accept="image/*" capture="environment" class="hidden"
-                onchange="onChatFileSelected(event)">
+            <!-- Hidden file input for chat images (sin capture para permitir galería en Safari) -->
+            <input type="file" id="chatFileInput" accept="image/*" class="hidden" onchange="onChatFileSelected(event)">
         </section>
 
         <!-- ── HISTORY TAB ── -->
@@ -174,7 +175,27 @@
         <section id="tab-settings" class="tab">
             <h2 class="settings-title">Ajustes</h2>
 
+            <!-- ── PROVEEDOR DE IA ── -->
             <div class="settings-card">
+                <label class="settings-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 8v4l3 3" />
+                    </svg>
+                    Proveedor de IA
+                </label>
+                <div class="provider-toggle">
+                    <button class="provider-btn active" id="btnProviderGroq" onclick="selectProvider('groq')">
+                        <span class="provider-icon">⚡</span> Groq (gratuito)
+                    </button>
+                    <button class="provider-btn" id="btnProviderAzure" onclick="selectProvider('azure')">
+                        <span class="provider-icon">🏢</span> Azure OpenAI / Copilot
+                    </button>
+                </div>
+            </div>
+
+            <!-- ── GROQ SETTINGS ── -->
+            <div class="settings-card" id="settingsGroq">
                 <label class="settings-label">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="3" y="11" width="18" height="11" rx="2" />
@@ -191,27 +212,64 @@
                         target="_blank">console.groq.com</a></p>
             </div>
 
+            <!-- ── AZURE OPENAI / COPILOT SETTINGS ── -->
+            <div class="settings-card hidden" id="settingsAzure">
+                <label class="settings-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    Azure OpenAI / Microsoft Copilot
+                </label>
+                <p class="settings-hint azure-info">💼 Para entornos corporativos con acceso a Azure OpenAI o Microsoft
+                    Copilot Studio.</p>
+                <div class="azure-field">
+                    <span class="azure-label">Endpoint de Azure OpenAI</span>
+                    <input type="text" id="azureEndpoint" placeholder="https://TU-RECURSO.openai.azure.com"
+                        class="settings-input" />
+                </div>
+                <div class="azure-field">
+                    <span class="azure-label">Deployment Name (modelo)</span>
+                    <input type="text" id="azureDeployment" placeholder="gpt-4o" class="settings-input" />
+                </div>
+                <div class="azure-field">
+                    <span class="azure-label">API Key de Azure</span>
+                    <div class="api-key-row">
+                        <input type="password" id="azureApiKey" placeholder="Tu Azure API Key" class="settings-input" />
+                        <button class="btn-ghost" onclick="toggleAzureKey()">Ver</button>
+                    </div>
+                </div>
+                <div class="azure-field">
+                    <span class="azure-label">API Version</span>
+                    <input type="text" id="azureApiVersion" placeholder="2024-02-01" class="settings-input"
+                        value="2024-02-01" />
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="saveAzureSettings()">Guardar configuración
+                    Azure</button>
+                <p class="settings-hint">El endpoint completo será: <code
+                        style="font-size:10px">{endpoint}/openai/deployments/{deployment}/chat/completions?api-version={version}</code>
+                </p>
+            </div>
+
+            <!-- ── KB ── -->
             <div class="settings-card">
                 <label class="settings-label">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
                         <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
                     </svg>
-                    Base de conocimiento (NotebookLM)
+                    Base de conocimiento
                 </label>
                 <p class="settings-hint">Pega el contenido de tus runbooks de Dynatrace. Se usará para enriquecer los
                     análisis.</p>
-
                 <div id="kbDocList" class="kb-doc-list"></div>
-
                 <button class="btn btn-secondary btn-sm" onclick="openAddDoc()">+ Añadir documento</button>
             </div>
 
             <div class="settings-card">
                 <label class="settings-label">Acerca de</label>
-                <div class="about-row"><span>Versión</span><span>2.0.0</span></div>
-                <div class="about-row"><span>Modelo IA</span><span>Llama 4 Maverick</span></div>
-                <div class="about-row"><span>Proveedor</span><span>Groq (gratuito)</span></div>
+                <div class="about-row"><span>Versión</span><span>2.1.0</span></div>
+                <div class="about-row"><span>Proveedores</span><span>Groq / Azure OpenAI</span></div>
                 <div class="about-row"><span>Motor</span><span>Investigación guiada v2</span></div>
             </div>
         </section>
