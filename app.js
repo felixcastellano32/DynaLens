@@ -134,6 +134,35 @@ function loadAzureSettings() {
     el('azureApiVersion').value = localStorage.getItem('dynalens_azure_version') || '2024-02-01';
 }
 
+// ── Amazon Bedrock Settings ───────────────────────────────────────
+function saveBedrockSettings() {
+    const endpoint = document.getElementById('bedrockEndpoint').value.trim();
+    const region = document.getElementById('bedrockRegion').value.trim();
+    const model = document.getElementById('bedrockModel').value.trim();
+    const accKey = document.getElementById('bedrockAccessKey').value.trim();
+    const secKey = document.getElementById('bedrockSecretKey').value.trim();
+    if (!model) { showToast('⚠️ El Model ID es obligatorio'); return; }
+    localStorage.setItem('dynalens_bedrock_endpoint', endpoint);
+    localStorage.setItem('dynalens_bedrock_region', region || 'us-east-1');
+    localStorage.setItem('dynalens_bedrock_model', model);
+    localStorage.setItem('dynalens_bedrock_access_key', accKey);
+    localStorage.setItem('dynalens_bedrock_secret_key', secKey);
+    showToast('✓ Configuración Bedrock guardada');
+}
+function loadBedrockSettings() {
+    const el = (id) => document.getElementById(id);
+    if (!el('bedrockEndpoint')) return;
+    el('bedrockEndpoint').value = localStorage.getItem('dynalens_bedrock_endpoint') || '';
+    el('bedrockRegion').value = localStorage.getItem('dynalens_bedrock_region') || 'us-east-1';
+    el('bedrockModel').value = localStorage.getItem('dynalens_bedrock_model') || 'anthropic.claude-3-5-sonnet-20241022-v2:0';
+    el('bedrockAccessKey').value = localStorage.getItem('dynalens_bedrock_access_key') || '';
+    el('bedrockSecretKey').value = localStorage.getItem('dynalens_bedrock_secret_key') || '';
+}
+function toggleBedrockKey() {
+    const input = document.getElementById('bedrockSecretKey');
+    input.type = input.type === 'password' ? 'text' : 'password';
+}
+
 // ── Provider Selector ────────────────────────────────────────────
 function getProvider() {
     return localStorage.getItem('dynalens_provider') || 'groq';
@@ -142,16 +171,23 @@ function selectProvider(name) {
     localStorage.setItem('dynalens_provider', name);
     document.getElementById('btnProviderGroq').classList.toggle('active', name === 'groq');
     document.getElementById('btnProviderAzure').classList.toggle('active', name === 'azure');
+    document.getElementById('btnProviderBedrock').classList.toggle('active', name === 'bedrock');
     document.getElementById('settingsGroq').classList.toggle('hidden', name !== 'groq');
     document.getElementById('settingsAzure').classList.toggle('hidden', name !== 'azure');
+    document.getElementById('settingsBedrock').classList.toggle('hidden', name !== 'bedrock');
     updateModelLabel();
 }
 function updateModelLabel() {
     const lbl = document.getElementById('chatModelLabel');
     if (!lbl) return;
-    if (getProvider() === 'azure') {
+    const p = getProvider();
+    if (p === 'azure') {
         const dep = localStorage.getItem('dynalens_azure_deployment') || 'Azure OpenAI';
         lbl.textContent = `Azure · ${dep}`;
+    } else if (p === 'bedrock') {
+        const m = localStorage.getItem('dynalens_bedrock_model') || 'Bedrock';
+        const short = m.split('.').pop().split('-').slice(0, 3).join('-');
+        lbl.textContent = `Bedrock · ${short}`;
     } else {
         lbl.textContent = 'Groq · Llama 4 Maverick';
     }
@@ -160,6 +196,74 @@ function initProvider() {
     const p = getProvider();
     selectProvider(p);
     loadAzureSettings();
+    loadBedrockSettings();
+}
+
+// ── AWS SigV4 Signing (pure JS / WebCrypto) ──────────────────────
+async function _awsSha256Hex(data) {
+    const buf = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+    const hash = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function _awsHmac(key, msg) {
+    const k = key instanceof Uint8Array ? key : new TextEncoder().encode(key);
+    const m = typeof msg === 'string' ? new TextEncoder().encode(msg) : msg;
+    const ck = await crypto.subtle.importKey('raw', k, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    return new Uint8Array(await crypto.subtle.sign('HMAC', ck, m));
+}
+async function sigV4Headers(method, url, body, accessKey, secretKey, region) {
+    const service = 'bedrock';
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const amzDate = `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}T${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}Z`;
+    const dateStamp = amzDate.substring(0, 8);
+    const { host, pathname } = new URL(url);
+    const payloadHash = await _awsSha256Hex(body);
+    const canonHeaders = `content-type:application/json\nhost:${host}\nx-amz-date:${amzDate}\n`;
+    const signedHdrs = 'content-type;host;x-amz-date';
+    const canonReq = [method, pathname, '', canonHeaders, signedHdrs, payloadHash].join('\n');
+    const credScope = `${dateStamp}/${region}/${service}/aws4_request`;
+    const strToSign = `AWS4-HMAC-SHA256\n${amzDate}\n${credScope}\n${await _awsSha256Hex(canonReq)}`;
+    const sigKey = await _awsHmac(
+        await _awsHmac(await _awsHmac(await _awsHmac('AWS4' + secretKey, dateStamp), region), service),
+        'aws4_request'
+    );
+    const sigHex = Array.from(await _awsHmac(sigKey, strToSign)).map(b => b.toString(16).padStart(2, '0')).join('');
+    return {
+        'Content-Type': 'application/json',
+        'X-Amz-Date': amzDate,
+        'Authorization': `AWS4-HMAC-SHA256 Credential=${accessKey}/${credScope}, SignedHeaders=${signedHdrs}, Signature=${sigHex}`
+    };
+}
+
+// ── OpenAI messages → Bedrock Converse format ─────────────────────
+function openAIToBedrock(messages) {
+    const system = [];
+    const bedrockMsgs = [];
+    for (const msg of messages) {
+        if (msg.role === 'system') {
+            const text = typeof msg.content === 'string' ? msg.content
+                : (msg.content || []).map(c => c.text || '').join('');
+            if (text.trim()) system.push({ text });
+            continue;
+        }
+        const raw = Array.isArray(msg.content)
+            ? msg.content
+            : [{ type: 'text', text: msg.content || '' }];
+        const content = raw.map(c => {
+            if (c.type === 'image_url') {
+                const match = (c.image_url?.url || '').match(/^data:image\/([a-zA-Z+]+);base64,(.+)$/);
+                if (match) {
+                    const fmt = match[1].toLowerCase().replace('jpg', 'jpeg');
+                    const validFmt = ['jpeg', 'png', 'gif', 'webp'].includes(fmt) ? fmt : 'jpeg';
+                    return { image: { format: validFmt, source: { bytes: match[2] } } };
+                }
+            }
+            return { text: c.text || '' };
+        }).filter(c => c.image || (typeof c.text === 'string' && c.text.trim() !== ''));
+        if (content.length) bedrockMsgs.push({ role: msg.role === 'assistant' ? 'assistant' : 'user', content });
+    }
+    return { system, messages: bedrockMsgs };
 }
 
 // ── Unified AI Call ──────────────────────────────────────────────
@@ -185,6 +289,43 @@ async function callAI({ messages, maxTokens = 2000, temperature = 0.2 }) {
             throw new Error(err?.error?.message || `Azure HTTP ${resp.status}`);
         }
         return resp.json();
+
+    } else if (provider === 'bedrock') {
+        const endpoint = (localStorage.getItem('dynalens_bedrock_endpoint') || '').trim().replace(/\/$/, '');
+        const model = (localStorage.getItem('dynalens_bedrock_model') || '').trim();
+        const accessKey = (localStorage.getItem('dynalens_bedrock_access_key') || '').trim();
+        const secretKey = (localStorage.getItem('dynalens_bedrock_secret_key') || '').trim();
+        const region = (localStorage.getItem('dynalens_bedrock_region') || 'us-east-1').trim();
+        if (!model) throw new Error('Configura el Model ID de Bedrock en Ajustes');
+
+        const { system, messages: bMsgs } = openAIToBedrock(messages);
+        const payload = { messages: bMsgs, inferenceConfig: { maxTokens, temperature } };
+        if (system.length) payload.system = system;
+        const bodyStr = JSON.stringify(payload);
+
+        // Detect whether to use native Bedrock endpoint (needs SigV4) or a proxy (API Gateway, etc.)
+        const useNative = !endpoint || endpoint.includes('bedrock-runtime');
+        const baseUrl = endpoint || `https://bedrock-runtime.${region}.amazonaws.com`;
+        const url = `${baseUrl}/model/${encodeURIComponent(model)}/converse`;
+
+        let hdrs;
+        if (useNative) {
+            if (!accessKey || !secretKey) throw new Error('Configura AWS Access Key y Secret Key en Ajustes');
+            hdrs = await sigV4Headers('POST', url, bodyStr, accessKey, secretKey, region);
+        } else {
+            // Proxy: just pass JSON without AWS signing
+            hdrs = { 'Content-Type': 'application/json' };
+        }
+        const resp = await fetch(url, { method: 'POST', headers: hdrs, body: bodyStr });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err?.message || err?.error?.message || `Bedrock HTTP ${resp.status}`);
+        }
+        const bd = await resp.json();
+        // Normalize Bedrock response → OpenAI-compatible shape
+        const text = (bd?.output?.message?.content || []).map(c => c.text || '').join('');
+        return { choices: [{ message: { content: text } }] };
+
     } else {
         // Groq
         const apiKey = localStorage.getItem('dynalens_api_key') || '';

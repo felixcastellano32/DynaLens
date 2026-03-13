@@ -191,6 +191,9 @@
                     <button class="provider-btn" id="btnProviderAzure" onclick="selectProvider('azure')">
                         <span class="provider-icon">🏢</span> Azure OpenAI / Copilot
                     </button>
+                    <button class="provider-btn" id="btnProviderBedrock" onclick="selectProvider('bedrock')">
+                        <span class="provider-icon">☁️</span> Amazon Bedrock
+                    </button>
                 </div>
             </div>
 
@@ -251,6 +254,58 @@
                 </p>
             </div>
 
+            <!-- ── AMAZON BEDROCK SETTINGS ── -->
+            <div class="settings-card hidden" id="settingsBedrock">
+                <label class="settings-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    Amazon Bedrock
+                </label>
+                <p class="settings-hint azure-info">🏢 Para entornos corporativos con acceso a Amazon Bedrock.<br>
+                    Si tu empresa usa <strong>API Gateway como proxy</strong>, pon su URL en Endpoint y deja las
+                    credenciales AWS vacías.</p>
+                <div class="azure-field">
+                    <span class="azure-label">Endpoint (opcional)</span>
+                    <input type="text" id="bedrockEndpoint"
+                        placeholder="https://bedrock-runtime.us-east-1.amazonaws.com" class="settings-input" />
+                    <small style="color:var(--text-tertiary);font-size:10px">Deja en blanco para usar el endpoint
+                        estándar de Bedrock. Si usas API Gateway, pon su URL aquí.</small>
+                </div>
+                <div class="azure-field">
+                    <span class="azure-label">Región AWS</span>
+                    <input type="text" id="bedrockRegion" placeholder="us-east-1" class="settings-input"
+                        value="us-east-1" />
+                </div>
+                <div class="azure-field">
+                    <span class="azure-label">Model ID</span>
+                    <input type="text" id="bedrockModel" placeholder="anthropic.claude-3-5-sonnet-20241022-v2:0"
+                        class="settings-input" />
+                    <small style="color:var(--text-tertiary);font-size:10px">Modelos con visión (recomendados):
+                        <em>anthropic.claude-3-5-sonnet-20241022-v2:0</em> &middot;
+                        <em>anthropic.claude-3-5-haiku-20241022-v1:0</em> &middot;
+                        <em>meta.llama3-2-90b-instruct-v1:0</em></small>
+                </div>
+                <div class="azure-field">
+                    <span class="azure-label">AWS Access Key ID</span>
+                    <input type="text" id="bedrockAccessKey" placeholder="AKIAIOSFODNN7EXAMPLE"
+                        class="settings-input" />
+                </div>
+                <div class="azure-field">
+                    <span class="azure-label">AWS Secret Access Key</span>
+                    <div class="api-key-row">
+                        <input type="password" id="bedrockSecretKey" placeholder="Tu Secret Access Key"
+                            class="settings-input" />
+                        <button class="btn-ghost" onclick="toggleBedrockKey()">Ver</button>
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="saveBedrockSettings()">Guardar configuración
+                    Bedrock</button>
+                <p class="settings-hint">El usuario IAM debe tener el permiso <code
+                        style="font-size:10px">bedrock:InvokeModel</code> sobre el modelo seleccionado.</p>
+            </div>
+
             <!-- ── KB ── -->
             <div class="settings-card">
                 <label class="settings-label">
@@ -268,8 +323,8 @@
 
             <div class="settings-card">
                 <label class="settings-label">Acerca de</label>
-                <div class="about-row"><span>Versión</span><span>2.1.0</span></div>
-                <div class="about-row"><span>Proveedores</span><span>Groq / Azure OpenAI</span></div>
+                <div class="about-row"><span>Versión</span><span>2.2.0</span></div>
+                <div class="about-row"><span>Proveedores</span><span>Groq / Azure OpenAI / Bedrock</span></div>
                 <div class="about-row"><span>Motor</span><span>Investigación guiada v2</span></div>
             </div>
         </section>
